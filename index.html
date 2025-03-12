@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>mesmerizer!</title>
+</head>
+
+<body>
+	<button type="button" class="showPlayButton">再生ボタンを表示</button>
+	<script>
+		class MovingWindow {
+			static map = new Map()
+			constructor({ id, name }) {
+				this.id = id
+				this.name = name
+				this.index = MovingWindow.map.size
+				this.data = null
+				this.widthOffset = 0
+				this.heightOffset = 0
+				MovingWindow.map.set(id, this)
+			}
+			init() {
+				return Promise.resolve()
+			}
+			move(flame) {
+				if (!this.data[flame]?.[0]) {
+					this.window.resizeTo(1, 1)
+					this.window.moveTo(0, this.index * 10)
+					return
+				}
+				this.window.resizeTo(this.data[flame][2] + this.widthOffset, screen.height)
+				this.window.moveTo(this.data[flame][1] + this.widthOffset / 2, 0)
+			}
+		}
+
+
+		class CharacterWindow extends MovingWindow {
+			constructor({ id, name }) {
+				super({ id, name })
+			}
+			init() {
+				this.window = window.open('blank.html', Math.random(), 'width=1,height=1,top=0,left=0')
+				this.window.moveTo(0, this.index * 10)
+				this.window.resizeTo(1, 1)
+				this.window.addEventListener('load', () => {
+					this.window.document.title = this.name
+					this.widthOffset = this.window.outerWidth - this.window.innerWidth
+					this.heightOffset = this.window.outerHeight - this.window.innerHeight
+				})
+				return Promise.all([
+					new Promise((resolve, reject) => {
+						fetch(`./resources/${this.id}.json`)
+							.then(res => {
+								return res.json()
+							})
+							.then(data => {
+								this.data = data
+								resolve()
+							})
+					}),
+					new Promise((resolve, reject) => {
+						this.window.addEventListener('load', () => {
+							this.video = this.window.document.createElement('video')
+							this.video.muted = true
+							this.video.src = `./resources/${this.id}.webm`
+							this.window.document.body.append(this.video)
+							this.video.style.transform = `translateY(${-(this.window.outerHeight - this.window.innerHeight)}px)`
+							this.video.addEventListener('loadeddata', async () => {
+								await this.video.play()
+								setTimeout(() => {
+									resolve()
+								}, 3000)
+							}, { once: true })
+							this.video.load()
+						})
+					})
+				])
+			}
+		}
+
+		class BackgroundWindow extends MovingWindow {
+			constructor({ id, name }) {
+				super({ id, name })
+			}
+			init() {
+				this.window = window.open('blank.html', Math.random(), 'width=1,height=1,top=0,left=0')
+				this.window.moveTo(0, this.index * 10)
+				this.window.resizeTo(1, 1)
+				this.window.addEventListener('load', () => {
+					this.window.document.title = this.name
+					this.widthOffset = this.window.outerWidth - this.window.innerWidth
+					this.heightOffset = this.window.outerHeight - this.window.innerHeight
+				})
+				return Promise.all([
+					new Promise((resolve, reject) => {
+						fetch(`./resources/${this.id}.json`)
+							.then(res => {
+								return res.json()
+							})
+							.then(data => {
+								this.data = data
+								resolve()
+							})
+					}),
+					new Promise((resolve, reject) => {
+						this.window.addEventListener('load', () => {
+							this.video = this.window.document.createElement('video')
+							this.video.muted = true
+							this.video.src = `./resources/${this.id}.webm`
+							this.window.document.body.append(this.video)
+							this.video.addEventListener('loadeddata', async () => {
+								await this.video.play()
+								setTimeout(() => {
+									resolve()
+								}, 3000)
+							}, { once: true })
+							this.video.load()
+						})
+					})
+				])
+			}
+			move(flame) {
+				if (!this.data[flame]?.[0]) {
+					this.window.resizeTo(1, 1)
+					this.window.moveTo(0, this.index * 10)
+					return
+				}
+				this.video.style.transform = this.data[flame][4] === 1080 ? `translateY(${-(this.window.outerHeight - this.window.innerHeight)}px)` : `translateY(0px)`
+				this.window.resizeTo(this.data[flame][3] + this.widthOffset, this.data[flame][4] + this.heightOffset + Math.min(screen.availHeight - (this.data[flame][2] + this.data[flame][4]), 0))
+				this.window.moveTo(this.data[flame][1] + this.widthOffset / 2, this.data[flame][2] - this.heightOffset)
+			}
+		}
+
+		class SubtitleWindow extends MovingWindow {
+			constructor({ id, name }) {
+				super({ id, name })
+			}
+			init() {
+				this.window = window.open('blank.html', Math.random(), 'width=1,height=1,top=0,left=0')
+				this.window.moveTo(0, this.index * 10)
+				this.window.resizeTo(1, 1)
+				this.window.addEventListener('load', () => {
+					this.window.document.title = this.name
+					this.widthOffset = this.window.outerWidth - this.window.innerWidth
+					this.heightOffset = this.window.outerHeight - this.window.innerHeight
+
+					this.window.document.body.style.background = '#000000c4'
+					this.window.document.body.style.overflow = 'hidden'
+					this.textElement = this.window.document.createElement('span')
+					this.textElement.style.fontSize = '60px'
+					this.textElement.style.color = 'white'
+					this.textElement.style.webkitTextStroke = '8px black'
+					this.textElement.style.paintOrder = 'stroke fill'
+					this.textElement.style.lineHeight = '1.12'
+					this.textElement.style.padding = '6px 10px'
+					this.textElement.style.whiteSpace = 'nowrap'
+					this.window.document.body.append(this.textElement)
+				})
+				return Promise.all([
+					new Promise((resolve, reject) => {
+						fetch(`./resources/${this.id}.json`)
+							.then(res => {
+								return res.json()
+							})
+							.then(data => {
+								this.data = data
+								resolve()
+							})
+					}),
+					new Promise((resolve, reject) => {
+						this.window.addEventListener('load', () => {
+							const font = new FontFace('cinecaption', 'url(./resources/cinecaption.ttf)')
+							font.load().then(() => {
+								this.window.document.fonts.add(font)
+								resolve()
+							})
+						})
+					})
+				])
+			}
+			move(flame) {
+				if (!Object.hasOwn(this.data, flame)) {
+					return
+				}
+				switch (true) {
+					case this.data[flame] === null: {
+						this.textElement.innerText = ''
+						break
+					}
+					case this.data[flame].garbled: {
+						this.textElement.innerText = new TextDecoder("shift-jis")
+							.decode(new TextEncoder().encode(this.data[flame].text))
+							.replaceAll('�', '?')
+							.replace(/[！-～]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+						this.textElement.style.fontFamily = 'system-ui'
+						break
+					}
+					default: {
+						this.textElement.innerText = this.data[flame].text
+						this.textElement.style.fontFamily = 'cinecaption, system-ui'
+					}
+				}
+				if (this.data[flame] === null) {
+					this.window.resizeTo(1, 1)
+					this.window.moveTo(0, this.index * 10)
+					return
+				}
+				const textRect = this.textElement.getBoundingClientRect()
+				this.window.resizeTo(textRect.width, textRect.height + this.heightOffset)
+				this.window.moveTo((screen.width - textRect.width + this.widthOffset) / 2, 900 - this.heightOffset)
+			}
+		}
+
+		const start = async () => {
+			const subtitle = new SubtitleWindow({ id: 'subtitle', name: '字幕' })
+			const background = new BackgroundWindow({ id: 'background', name: ' ' })
+			const miku = new CharacterWindow({ id: 'miku', name: 'Miku' })
+			const teto = new CharacterWindow({ id: 'teto', name: 'Teto' })
+			const music = new Audio('./resources/mesmerizer.mp3')
+			music.volume = 0.25
+			music.muted = true
+			await music.play()
+			await Promise.all(MovingWindow.map.values().map(c => c.init()))
+
+			const behaviors = {
+				0: () => {
+					background.video.currentTime = 0
+					miku.video.currentTime = 0
+					teto.video.currentTime = 0
+					music.currentTime = 0
+					music.muted = false
+					background.window.document.title = 'center'
+				},
+				334: () => miku.window.focus(),
+				577: () => teto.window.focus(),
+				851: () => miku.window.focus(),
+				971: () => teto.window.focus(),
+				1040: () => background.window.focus(),
+				1085: () => miku.window.focus(),
+				1333: () => teto.window.focus(),
+				1652: () => {
+					background.window.focus()
+					background.window.document.title = 'QUIZ TIME!'
+				},
+				1901: () => {
+					miku.window.focus()
+					background.window.document.title = 'center'
+				},
+				2148: () => teto.window.focus(),
+				2402: () => miku.window.focus(),
+				2644: () => teto.window.focus(),
+				2890: () => background.window.focus(),
+				2921: () => miku.window.focus(),
+				2945: () => teto.window.focus(),
+				2956: () => miku.window.focus(),
+				3142: () => teto.window.focus(),
+				3455: () => background.window.focus(),
+			}
+
+			const startMs = performance.now()
+			let lastHandledFlame = -1
+
+			const loop = () => {
+				const elapsed = performance.now() - startMs
+				const flame = Math.floor(elapsed / (1000 / 24))
+				if (flame <= lastHandledFlame) {
+					setTimeout(loop, 4)
+					return
+				}
+				lastHandledFlame = flame
+				behaviors[flame]?.()
+				MovingWindow.map.values().forEach(c => {
+					c.move(flame)
+				})
+				setTimeout(loop, 4)
+			}
+			loop()
+		}
+
+		document.querySelector('.showPlayButton').addEventListener('click', () => {
+			const buttonWindow = window.open('about:blank', Math.random(), 'width=1,height=1,top=0,left=0')
+			setTimeout(() => {
+				buttonWindow.moveTo((screen.width - buttonWindow.outerWidth) / 2, (screen.availHeight - buttonWindow.outerHeight) / 2)
+				const button = buttonWindow.document.createElement('button')
+				button.type = 'button'
+				button.innerText = '再生'
+				button.addEventListener('click', () => {
+					start()
+					const text = 'MESMERIZER!'
+					text.split('').forEach((t, i) => {
+						setTimeout(() => button.innerText = t, (1000 / 24) * i)
+					})
+					setTimeout(() => buttonWindow.close(), (1000 / 24) * text.length)
+				}, { once: true })
+				buttonWindow.document.body.append(button)
+			}, 100)
+		})
+	</script>
+</body>
+
+</html>

@@ -1,0 +1,9 @@
+{
+	"name": "ramune314159265.desktopwrapperchanger",
+	"description": "DesktopWrapperChanger",
+	"path": "D:/servers/projects/mesmerizer!/chromeextension/native/DesktopWrapperChanger/bin/Debug/net8.0/DesktopWrapperChanger.exe",
+	"type": "stdio",
+	"allowed_origins": [
+		"chrome-extension://okekmdjkihkopgakijgeobadkbneckpc/"
+	]
+}

@@ -10,21 +10,31 @@
 <body>
 	<button type="button" class="showPlayButton">再生ボタンを表示</button>
 	<script>
-		class MovingWindow {
+		const extensionId = 'okekmdjkihkopgakijgeobadkbneckpc'
+
+		class Base {
 			static map = new Map()
-			constructor({ id, name }) {
-				this.id = id
-				this.name = name
-				this.index = MovingWindow.map.size
-				this.data = null
-				this.widthOffset = 0
-				this.heightOffset = 0
-				MovingWindow.map.set(id, this)
+			constructor({ id }) {
+				Base.map.set(id, this)
 			}
 			init() {
 				return Promise.resolve()
 			}
-			move(flame) {
+			tick(flame) { }
+		}
+
+		class MovingWindow extends Base {
+			constructor({ id, name }) {
+				super({ id })
+				this.id = id
+				this.name = name
+				this.index = Base.map.size
+				this.data = null
+				this.widthOffset = 0
+				this.heightOffset = 0
+				Base.map.set(id, this)
+			}
+			tick(flame) {
 				if (!this.data[flame]?.[0]) {
 					this.window.resizeTo(1, 1)
 					this.window.moveTo(0, this.index * 10)
@@ -32,6 +42,22 @@
 				}
 				this.window.resizeTo(this.data[flame][2] + this.widthOffset, screen.height)
 				this.window.moveTo(this.data[flame][1] + this.widthOffset / 2, 0)
+			}
+			focus() {
+				if (!chrome || !chrome.runtime) {
+					this.window.focus()
+					return
+				}
+				chrome.runtime.sendMessage(extensionId, {
+					type: "popup_focus",
+					id: this.id
+				})
+			}
+			openWindow() {
+				this.window = window.open(`blank.html?id=${this.id}`, Math.random(), 'width=1,height=1,top=0,left=0')
+				this.window.moveTo(0, this.index * 10)
+				this.window.resizeTo(1, 1)
+				return this.window
 			}
 		}
 
@@ -41,9 +67,7 @@
 				super({ id, name })
 			}
 			init() {
-				this.window = window.open('blank.html', Math.random(), 'width=1,height=1,top=0,left=0')
-				this.window.moveTo(0, this.index * 10)
-				this.window.resizeTo(1, 1)
+				this.openWindow()
 				this.window.addEventListener('load', () => {
 					this.window.document.title = this.name
 					this.widthOffset = this.window.outerWidth - this.window.innerWidth
@@ -81,13 +105,11 @@
 		}
 
 		class BackgroundWindow extends MovingWindow {
-			constructor({ id, name }) {
-				super({ id, name })
+			constructor() {
+				super({ id: 'background', name: 'bg' })
 			}
 			init() {
-				this.window = window.open('blank.html', Math.random(), 'width=1,height=1,top=0,left=0')
-				this.window.moveTo(0, this.index * 10)
-				this.window.resizeTo(1, 1)
+				this.openWindow()
 				this.window.addEventListener('load', () => {
 					this.window.document.title = this.name
 					this.widthOffset = this.window.outerWidth - this.window.innerWidth
@@ -121,7 +143,7 @@
 					})
 				])
 			}
-			move(flame) {
+			tick(flame) {
 				if (!this.data[flame]?.[0]) {
 					this.window.resizeTo(1, 1)
 					this.window.moveTo(0, this.index * 10)
@@ -134,13 +156,11 @@
 		}
 
 		class SubtitleWindow extends MovingWindow {
-			constructor({ id, name }) {
-				super({ id, name })
+			constructor() {
+				super({ id: 'subtitle', name: '字幕' })
 			}
 			init() {
-				this.window = window.open('blank.html', Math.random(), 'width=1,height=1,top=0,left=0')
-				this.window.moveTo(0, this.index * 10)
-				this.window.resizeTo(1, 1)
+				this.openWindow()
 				this.window.addEventListener('load', () => {
 					this.window.document.title = this.name
 					this.widthOffset = this.window.outerWidth - this.window.innerWidth
@@ -180,7 +200,7 @@
 					})
 				])
 			}
-			move(flame) {
+			tick(flame) {
 				if (!Object.hasOwn(this.data, flame)) {
 					return
 				}
@@ -213,16 +233,41 @@
 			}
 		}
 
+		class DesktopBackground extends Base {
+			static change(r, g, b) {
+				if (!chrome || !chrome.runtime) {
+					return
+				}
+				chrome.runtime.sendMessage(extensionId, {
+					type: "desktop_color_change",
+					rgb: [r, g, b]
+				})
+			}
+			constructor() {
+				super({ id: 'desktop_color' })
+			}
+			async init() {
+				this.data = await (await fetch('./resources/background_colors.json')).json()
+			}
+			tick(flame) {
+				if (!Object.hasOwn(this.data, flame)) {
+					return
+				}
+				DesktopBackground.change(...this.data[flame])
+			}
+		}
+
 		const start = async () => {
-			const subtitle = new SubtitleWindow({ id: 'subtitle', name: '字幕' })
-			const background = new BackgroundWindow({ id: 'background', name: ' ' })
+			const subtitle = new SubtitleWindow()
+			const background = new BackgroundWindow()
 			const miku = new CharacterWindow({ id: 'miku', name: 'Miku' })
 			const teto = new CharacterWindow({ id: 'teto', name: 'Teto' })
+			const desktopColor = new DesktopBackground()
 			const music = new Audio('./resources/mesmerizer.mp3')
 			music.volume = 0.25
 			music.muted = true
 			await music.play()
-			await Promise.all(MovingWindow.map.values().map(c => c.init()))
+			await Promise.all(Base.map.values().map(c => c.init()))
 
 			const behaviors = {
 				0: () => {
@@ -233,30 +278,30 @@
 					music.muted = false
 					background.window.document.title = 'center'
 				},
-				334: () => miku.window.focus(),
-				577: () => teto.window.focus(),
-				851: () => miku.window.focus(),
-				971: () => teto.window.focus(),
-				1040: () => background.window.focus(),
-				1085: () => miku.window.focus(),
-				1333: () => teto.window.focus(),
+				334: () => miku.focus(),
+				577: () => teto.focus(),
+				851: () => miku.focus(),
+				971: () => teto.focus(),
+				1040: () => background.focus(),
+				1085: () => miku.focus(),
+				1333: () => teto.focus(),
 				1652: () => {
-					background.window.focus()
+					background.focus()
 					background.window.document.title = 'QUIZ TIME!'
 				},
 				1901: () => {
-					miku.window.focus()
+					miku.focus()
 					background.window.document.title = 'center'
 				},
-				2148: () => teto.window.focus(),
-				2402: () => miku.window.focus(),
-				2644: () => teto.window.focus(),
-				2890: () => background.window.focus(),
-				2921: () => miku.window.focus(),
-				2945: () => teto.window.focus(),
-				2956: () => miku.window.focus(),
-				3142: () => teto.window.focus(),
-				3455: () => background.window.focus(),
+				2148: () => teto.focus(),
+				2402: () => miku.focus(),
+				2644: () => teto.focus(),
+				2890: () => background.focus(),
+				2921: () => miku.focus(),
+				2945: () => teto.focus(),
+				2956: () => miku.focus(),
+				3142: () => teto.focus(),
+				3455: () => background.focus(),
 			}
 
 			const startMs = performance.now()
@@ -271,8 +316,8 @@
 				}
 				lastHandledFlame = flame
 				behaviors[flame]?.()
-				MovingWindow.map.values().forEach(c => {
-					c.move(flame)
+				Base.map.values().forEach(c => {
+					c.tick(flame)
 				})
 				setTimeout(loop, 4)
 			}
